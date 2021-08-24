@@ -1,4 +1,4 @@
-module github.com/Z-Fi/coredns-jsonlog
+module github.com/SPR-Fi/coredns-jsonlog
 
 go 1.13
 
