@@ -31,9 +31,12 @@ func (plugin *JsonLog) loadSPRConfig() {
 	Configmtx.Lock()
 	defer Configmtx.Unlock()
 	data, err := ioutil.ReadFile(CONFIG_PATH)
-	err = json.Unmarshal(data, &plugin.config)
-	if err != nil {
-		log.Fatal(err)
+
+	if data != "" {
+		err = json.Unmarshal(data, &plugin.config)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	if plugin.config.HostPrivacyIPList == nil {

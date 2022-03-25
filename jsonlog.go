@@ -14,8 +14,8 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
@@ -25,13 +25,13 @@ import (
 	"github.com/influxdata/influxdb-client-go/v2"
 	"github.com/jackc/pgx/v4/pgxpool"
 
-	"github.com/coredns/coredns/plugin/pkg/response"
 	clog "github.com/coredns/coredns/plugin/pkg/log"
+	"github.com/coredns/coredns/plugin/pkg/response"
 )
 
 const (
-	coreDNSPackageName string = `jsonlog`
-	CLIENT_MEMORY_LOG_COUNT int = 1024
+	coreDNSPackageName      string = `jsonlog`
+	CLIENT_MEMORY_LOG_COUNT int    = 1024
 )
 
 var log = clog.NewWithPlugin(coreDNSPackageName)
@@ -45,12 +45,12 @@ func init() {
 
 // JsonLog is the  plugin.
 type JsonLog struct {
-	SQL         *pgxpool.Pool
-	config      SPRLogConfig
-	IFDB        influxdb2.Client
-	IFDB_org    string
-	IFDB_bucket string
-	Next        plugin.Handler
+	SQL              *pgxpool.Pool
+	config           SPRLogConfig
+	IFDB             influxdb2.Client
+	IFDB_org         string
+	IFDB_bucket      string
+	Next             plugin.Handler
 	superapi_enabled bool
 }
 
@@ -136,7 +136,7 @@ func (plugin *JsonLog) Name() string {
 type EventData struct {
 	Q           []dns.Question
 	A           []dns.RR
-	Type				string
+	Type        string
 	FirstName   string
 	FirstAnswer string
 	Local       string
@@ -207,7 +207,6 @@ func (plugin *JsonLog) ServeDNS(ctx context.Context, rw dns.ResponseWriter, r *d
 var EventMemoryMtx sync.Mutex
 var EventMemoryIdx = make(map[string]int)
 var EventMemory = make(map[string]*[CLIENT_MEMORY_LOG_COUNT]EventData)
-
 
 func (plugin *JsonLog) PushEvent(event *DNSEvent) {
 	client := strings.Split(event.data.Remote, ":")[0]
