@@ -140,6 +140,7 @@ func (plugin *JsonLog) IPQueryHistory(w http.ResponseWriter, r *http.Request) {
 	EventMemoryMtx.Lock()
 
 	if r.Method == http.MethodDelete {
+		EventMemoryIdx[ip] = 0
 		EventMemory[ip] = &[CLIENT_MEMORY_LOG_COUNT]EventData{}
 		EventMemoryMtx.Unlock()
 		return
@@ -199,11 +200,11 @@ func (plugin *JsonLog) runAPI() {
 	unix_plugin_router := mux.NewRouter().StrictSlash(true)
 
 	unix_plugin_router.HandleFunc("/config", plugin.showConfig).Methods("GET")
-	unix_plugin_router.HandleFunc("/HostPrivacyList", plugin.hostPrivacyList).Methods("GET", "PUT")
-	unix_plugin_router.HandleFunc("/DomainIgnore/{domain}", plugin.excludeDomain).Methods("PUT")
-	unix_plugin_router.HandleFunc("/DomainIgnores", plugin.listIgnoreDomains).Methods("GET")
+	unix_plugin_router.HandleFunc("/host_privacy_list", plugin.hostPrivacyList).Methods("GET", "PUT")
+	unix_plugin_router.HandleFunc("/domain_ignore/{domain}", plugin.excludeDomain).Methods("PUT")
+	unix_plugin_router.HandleFunc("/domain_ignores", plugin.listIgnoreDomains).Methods("GET")
 
-	unix_plugin_router.HandleFunc("/QueryHistory/{ip}", plugin.IPQueryHistory).Methods("GET", "DELETE")
+	unix_plugin_router.HandleFunc("/history/{ip}", plugin.IPQueryHistory).Methods("GET", "DELETE")
 	//unix_plugin_router.HandleFunc("/QueryHistory", plugin.QueryHistory).Methods("GET")
 
 	os.Remove(UNIX_PLUGIN_LISTENER)

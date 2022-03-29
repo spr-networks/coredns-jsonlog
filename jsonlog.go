@@ -225,7 +225,6 @@ func (plugin *JsonLog) PushEvent(event *DNSEvent) {
 	}
 
 	if plugin.superapi_enabled {
-
 		EventMemoryMtx.Lock()
 		idx := EventMemoryIdx[client]
 		if idx >= CLIENT_MEMORY_LOG_COUNT {
