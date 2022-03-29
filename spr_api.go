@@ -19,10 +19,9 @@ var TEST_PREFIX = os.Getenv("TEST_PREFIX")
 var UNIX_PLUGIN_LISTENER = TEST_PREFIX + "/state/dns/dns_log_plugin"
 var CONFIG_PATH = TEST_PREFIX + "/state/dns/log_rules.json"
 
-
 type SPRLogConfig struct {
-  HostPrivacyIPList []string	//list of local IPs to ignore for logs
-	DomainIgnoreList  []string	//list of local IPs to ignore for logs
+	HostPrivacyIPList []string //list of local IPs to ignore for logs
+	DomainIgnoreList  []string //list of local IPs to ignore for logs
 }
 
 var Configmtx sync.Mutex
@@ -32,7 +31,7 @@ func (plugin *JsonLog) loadSPRConfig() {
 	defer Configmtx.Unlock()
 	data, err := ioutil.ReadFile(CONFIG_PATH)
 
-	if data != "" {
+	if string(data) != "" {
 		err = json.Unmarshal(data, &plugin.config)
 		if err != nil {
 			log.Fatal(err)
@@ -87,7 +86,7 @@ func (plugin *JsonLog) hostPrivacyList(w http.ResponseWriter, r *http.Request) {
 	//validate every string is a valid IP
 	for _, ip := range hostPrivacyList {
 		if net.ParseIP(ip) == nil {
-			http.Error(w, "Invalid IP: " + ip, 400)
+			http.Error(w, "Invalid IP: "+ip, 400)
 			return
 		}
 	}
@@ -99,8 +98,6 @@ func (plugin *JsonLog) hostPrivacyList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(plugin.config.HostPrivacyIPList)
 }
-
-
 
 func (plugin *JsonLog) excludeDomain(w http.ResponseWriter, r *http.Request) {
 	//reload
@@ -126,7 +123,6 @@ func (plugin *JsonLog) excludeDomain(w http.ResponseWriter, r *http.Request) {
 	plugin.saveConfig()
 }
 
-
 func (plugin *JsonLog) listIgnoreDomains(w http.ResponseWriter, r *http.Request) {
 	//reload
 	plugin.loadSPRConfig()
@@ -142,6 +138,13 @@ func (plugin *JsonLog) IPQueryHistory(w http.ResponseWriter, r *http.Request) {
 	retval := []EventData{}
 
 	EventMemoryMtx.Lock()
+
+	if r.Method == http.MethodDelete {
+		EventMemory[ip] = &[CLIENT_MEMORY_LOG_COUNT]EventData{}
+		EventMemoryMtx.Unlock()
+		return
+	}
+
 	val, exists := EventMemory[ip]
 	if exists {
 
@@ -196,11 +199,11 @@ func (plugin *JsonLog) runAPI() {
 	unix_plugin_router := mux.NewRouter().StrictSlash(true)
 
 	unix_plugin_router.HandleFunc("/config", plugin.showConfig).Methods("GET")
-  unix_plugin_router.HandleFunc("/HostPrivacyList", plugin.hostPrivacyList).Methods("GET", "PUT")
+	unix_plugin_router.HandleFunc("/HostPrivacyList", plugin.hostPrivacyList).Methods("GET", "PUT")
 	unix_plugin_router.HandleFunc("/DomainIgnore/{domain}", plugin.excludeDomain).Methods("PUT")
 	unix_plugin_router.HandleFunc("/DomainIgnores", plugin.listIgnoreDomains).Methods("GET")
 
-	unix_plugin_router.HandleFunc("/QueryHistory/{ip}", plugin.IPQueryHistory).Methods("GET")
+	unix_plugin_router.HandleFunc("/QueryHistory/{ip}", plugin.IPQueryHistory).Methods("GET", "DELETE")
 	//unix_plugin_router.HandleFunc("/QueryHistory", plugin.QueryHistory).Methods("GET")
 
 	os.Remove(UNIX_PLUGIN_LISTENER)
