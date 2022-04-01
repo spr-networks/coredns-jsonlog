@@ -156,8 +156,13 @@ func (i *DNSEvent) Write(b []byte) (int, error) {
 func (i *DNSEvent) WriteMsg(m *dns.Msg) error {
 
 	tpe, _ := response.Typify(m, time.Now().UTC())
-
 	i.data.Type = tpe.String()
+
+	//the blocker will set no Authority messagres
+	if len(m.Ns) == 0 &&  m.Rcode ==  dns.RcodeNameError {
+		i.data.Type = "BLOCKED"
+	}
+
 	i.data.Q = m.Question
 	i.data.A = m.Answer
 	return i.ResponseWriter.WriteMsg(m)
