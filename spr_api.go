@@ -110,17 +110,30 @@ func (plugin *JsonLog) excludeDomain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, d := range plugin.config.DomainIgnoreList {
-		if d == domain {
-			//already exists
-			http.Error(w, "Duplicate domain", 400)
-			return
+	if r.Method == http.MethodDelete {
+		for idx, d := range plugin.config.DomainIgnoreList {
+			if d == domain {
+				plugin.config.DomainIgnoreList = append(plugin.config.DomainIgnoreList[:idx], plugin.config.DomainIgnoreList[idx+1:]...)
+				break
+			}
 		}
+	} else {
+
+		for _, d := range plugin.config.DomainIgnoreList {
+			if d == domain {
+				//already exists
+				http.Error(w, "Duplicate domain", 400)
+				return
+			}
+		}
+
+		plugin.config.DomainIgnoreList = append(plugin.config.DomainIgnoreList, domain)
 	}
 
-	plugin.config.DomainIgnoreList = append(plugin.config.DomainIgnoreList, domain)
-
 	plugin.saveConfig()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(plugin.config.DomainIgnoreList)
 }
 
 func (plugin *JsonLog) listIgnoreDomains(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +214,7 @@ func (plugin *JsonLog) runAPI() {
 
 	unix_plugin_router.HandleFunc("/config", plugin.showConfig).Methods("GET")
 	unix_plugin_router.HandleFunc("/host_privacy_list", plugin.hostPrivacyList).Methods("GET", "PUT")
-	unix_plugin_router.HandleFunc("/domain_ignore/{domain}", plugin.excludeDomain).Methods("PUT")
+	unix_plugin_router.HandleFunc("/domain_ignore/{domain}", plugin.excludeDomain).Methods("PUT", "DELETE")
 	unix_plugin_router.HandleFunc("/domain_ignores", plugin.listIgnoreDomains).Methods("GET")
 
 	unix_plugin_router.HandleFunc("/history/{ip}", plugin.IPQueryHistory).Methods("GET", "DELETE")
