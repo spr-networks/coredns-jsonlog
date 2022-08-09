@@ -2,8 +2,9 @@
 
 Example config:
 jsonlog {
-#	pgdb postgresql://crate@192.168.0.193:5432/doc
+enable_superapi
 influxdb http://192.168.0.193:8086/ test dns_data base64keyhere==
+#	pgdb postgresql://crate@192.168.0.193:5432/doc
 }
 
 */
@@ -12,8 +13,8 @@ package jsonlog
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coredns/caddy"
@@ -25,10 +26,12 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 
 	clog "github.com/coredns/coredns/plugin/pkg/log"
+	"github.com/coredns/coredns/plugin/pkg/response"
 )
 
 const (
-	coreDNSPackageName string = `jsonlog`
+	coreDNSPackageName      string = `jsonlog`
+	CLIENT_MEMORY_LOG_COUNT int    = 1024
 )
 
 var log = clog.NewWithPlugin(coreDNSPackageName)
@@ -42,11 +45,13 @@ func init() {
 
 // JsonLog is the  plugin.
 type JsonLog struct {
-	SQL         *pgxpool.Pool
-	IFDB        influxdb2.Client
-	IFDB_org    string
-	IFDB_bucket string
-	Next        plugin.Handler
+	SQL              *pgxpool.Pool
+	config           SPRLogConfig
+	IFDB             influxdb2.Client
+	IFDB_org         string
+	IFDB_bucket      string
+	Next             plugin.Handler
+	superapi_enabled bool
 }
 
 func New() *JsonLog {
@@ -55,6 +60,8 @@ func New() *JsonLog {
 
 func setup(c *caddy.Controller) error {
 
+	superapi_enabled := false
+
 	jsonlog := New()
 
 	for c.Next() {
@@ -62,6 +69,13 @@ func setup(c *caddy.Controller) error {
 			var arg, val string
 			arg = c.Val()
 			c.NextArg()
+
+			if arg == `enable_superapi` {
+				superapi_enabled = true
+				arg = c.Val()
+				c.NextArg()
+			}
+
 			val = c.Val()
 			c.NextArg()
 			switch arg {
@@ -89,7 +103,9 @@ func setup(c *caddy.Controller) error {
 		}
 	}
 
-	if jsonlog.SQL == nil && jsonlog.IFDB == nil {
+	jsonlog.superapi_enabled = superapi_enabled
+
+	if jsonlog.SQL == nil && jsonlog.IFDB == nil && !superapi_enabled {
 		log.Fatal("no   connection")
 		return nil
 	}
@@ -99,20 +115,28 @@ func setup(c *caddy.Controller) error {
 		return jsonlog
 	})
 
+	if jsonlog.superapi_enabled {
+		go func() {
+			jsonlog.loadSPRConfig()
+			jsonlog.runAPI()
+		}()
+	}
+
 	return nil
 }
 
-func (plugin JsonLog) String() string {
+func (plugin *JsonLog) String() string {
 	return coreDNSPackageName
 }
 
-func (plugin JsonLog) Name() string {
+func (plugin *JsonLog) Name() string {
 	return coreDNSPackageName
 }
 
 type EventData struct {
 	Q           []dns.Question
 	A           []dns.RR
+	Type        string
 	FirstName   string
 	FirstAnswer string
 	Local       string
@@ -130,6 +154,15 @@ func (i *DNSEvent) Write(b []byte) (int, error) {
 }
 
 func (i *DNSEvent) WriteMsg(m *dns.Msg) error {
+
+	tpe, _ := response.Typify(m, time.Now().UTC())
+	i.data.Type = tpe.String()
+
+	//the blocker will set no Authority messagres
+	if len(m.Ns) == 0 &&  m.Rcode ==  dns.RcodeNameError {
+		i.data.Type = "BLOCKED"
+	}
+
 	i.data.Q = m.Question
 	i.data.A = m.Answer
 	return i.ResponseWriter.WriteMsg(m)
@@ -140,7 +173,7 @@ func (i *DNSEvent) String() string {
 	return string(x)
 }
 
-func (plugin JsonLog) ServeDNS(ctx context.Context, rw dns.ResponseWriter, r *dns.Msg) (c int, err error) {
+func (plugin *JsonLog) ServeDNS(ctx context.Context, rw dns.ResponseWriter, r *dns.Msg) (c int, err error) {
 	local := rw.LocalAddr()
 	remote := rw.RemoteAddr()
 
@@ -173,15 +206,50 @@ func (plugin JsonLog) ServeDNS(ctx context.Context, rw dns.ResponseWriter, r *dn
 
 	plugin.PushEvent(event)
 
-	return
+	return c, err
 }
 
-func (plugin JsonLog) PushEvent(event *DNSEvent) {
+var EventMemoryMtx sync.Mutex
+var EventMemoryIdx = make(map[string]int)
+var EventMemory = make(map[string]*[CLIENT_MEMORY_LOG_COUNT]EventData)
+
+func (plugin *JsonLog) PushEvent(event *DNSEvent) {
+	client := strings.Split(event.data.Remote, ":")[0]
+
+	for _, entry := range plugin.config.HostPrivacyIPList {
+		if entry == client {
+			// no logs for entries in the privacy list
+			return
+		}
+	}
+	for _, entry := range plugin.config.DomainIgnoreList {
+		if entry == event.data.FirstName {
+			// ignore domain
+			return
+		}
+	}
+
+	if plugin.superapi_enabled {
+		EventMemoryMtx.Lock()
+		idx := EventMemoryIdx[client]
+		if idx >= CLIENT_MEMORY_LOG_COUNT {
+			idx = 0
+		}
+		EventMemoryIdx[client] = idx + 1
+
+		val, exists := EventMemory[client]
+		if !exists {
+			val = &[CLIENT_MEMORY_LOG_COUNT]EventData{}
+			//assign pointer once
+			EventMemory[client] = val
+		}
+		val[idx] = event.data
+		EventMemoryMtx.Unlock()
+	}
 
 	if plugin.SQL != nil {
 		_, err := plugin.SQL.Exec(context.Background(), "INSERT INTO dns(data) VALUES(?)", event.String())
 		if err != nil {
-			fmt.Println("exec tx")
 			log.Fatal(err)
 		}
 	} else if plugin.IFDB != nil {
