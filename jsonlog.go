@@ -1,12 +1,10 @@
 /*
-
 Example config:
 jsonlog {
 enable_superapi
 influxdb http://192.168.0.193:8086/ test dns_data base64keyhere==
 #	pgdb postgresql://crate@192.168.0.193:5432/doc
 }
-
 */
 package jsonlog
 
@@ -27,6 +25,8 @@ import (
 
 	clog "github.com/coredns/coredns/plugin/pkg/log"
 	"github.com/coredns/coredns/plugin/pkg/response"
+
+	"github.com/spr-networks/sprbus"
 )
 
 const (
@@ -159,7 +159,7 @@ func (i *DNSEvent) WriteMsg(m *dns.Msg) error {
 	i.data.Type = tpe.String()
 
 	//the blocker will set no Authority messagres
-	if len(m.Ns) == 0 &&  m.Rcode ==  dns.RcodeNameError {
+	if len(m.Ns) == 0 && m.Rcode == dns.RcodeNameError {
 		i.data.Type = "BLOCKED"
 	}
 
@@ -229,7 +229,13 @@ func (plugin *JsonLog) PushEvent(event *DNSEvent) {
 		}
 	}
 
+	dnsEventJson := event.String()
+
 	if plugin.superapi_enabled {
+
+		//publish event to sprbus
+		sprbus.Publish("dns:serve:event", dnsEventJson)
+
 		EventMemoryMtx.Lock()
 		idx := EventMemoryIdx[client]
 		if idx >= CLIENT_MEMORY_LOG_COUNT {
@@ -248,7 +254,7 @@ func (plugin *JsonLog) PushEvent(event *DNSEvent) {
 	}
 
 	if plugin.SQL != nil {
-		_, err := plugin.SQL.Exec(context.Background(), "INSERT INTO dns(data) VALUES(?)", event.String())
+		_, err := plugin.SQL.Exec(context.Background(), "INSERT INTO dns(data) VALUES(?)", dnsEventJson)
 		if err != nil {
 			log.Fatal(err)
 		}
