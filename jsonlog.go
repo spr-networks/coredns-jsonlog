@@ -234,7 +234,7 @@ func (plugin *JsonLog) PushEvent(event *DNSEvent) {
 	if plugin.superapi_enabled {
 
 		//publish event to sprbus
-		sprbus.Publish("dns:serve:event", dnsEventJson)
+		sprbus.PublishString("dns:serve:event", dnsEventJson)
 
 		EventMemoryMtx.Lock()
 		idx := EventMemoryIdx[client]
