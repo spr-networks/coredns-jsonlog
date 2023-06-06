@@ -11,6 +11,7 @@ package jsonlog
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -233,8 +234,10 @@ func (plugin *JsonLog) PushEvent(event *DNSEvent) {
 
 	if plugin.superapi_enabled {
 
+		topic := fmt.Sprintf("dns:serve:%s", client)
+
 		//publish event to sprbus
-		sprbus.PublishString("dns:serve:event", dnsEventJson)
+		sprbus.PublishString(topic, dnsEventJson)
 
 		EventMemoryMtx.Lock()
 		idx := EventMemoryIdx[client]
