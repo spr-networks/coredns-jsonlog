@@ -186,9 +186,7 @@ func (plugin *JsonLog) ServeDNS(ctx context.Context, rw dns.ResponseWriter, r *d
 	event.data.Remote = remote.String()
 
 	c, err = plugin.Next.ServeDNS(ctx, event, r)
-	if err != nil {
-		return c, err
-	}
+
 	if len(event.data.Q) >= 1 {
 		//set FirstName
 		event.data.FirstName = event.data.Q[0].Name
