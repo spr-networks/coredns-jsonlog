@@ -22,6 +22,7 @@ var CONFIG_PATH = TEST_PREFIX + "/state/dns/log_rules.json"
 type SPRLogConfig struct {
 	HostPrivacyIPList []string //list of local IPs to ignore for logs
 	DomainIgnoreList  []string //list of local IPs to ignore for logs
+	StoreLocalMemory  bool
 }
 
 var Configmtx sync.Mutex
@@ -145,7 +146,13 @@ func (plugin *JsonLog) listIgnoreDomains(w http.ResponseWriter, r *http.Request)
 }
 
 func (plugin *JsonLog) IPQueryHistory(w http.ResponseWriter, r *http.Request) {
+	Configmtx.Lock()
+	defer Configmtx.Unlock()
 
+	if !plugin.config.StoreLocalMemory {
+		http.Error(w, "StoreLocalMemory configuration off", 400)
+		return
+	}
 	ip := mux.Vars(r)["ip"]
 
 	retval := []EventData{}

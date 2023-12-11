@@ -238,22 +238,23 @@ func (plugin *JsonLog) PushEvent(event *DNSEvent) {
 
 		//publish event to sprbus
 		sprbus.PublishString(topic, dnsEventJson)
+		if plugin.config.StoreLocalMemory {
+			EventMemoryMtx.Lock()
+			idx := EventMemoryIdx[client]
+			if idx >= CLIENT_MEMORY_LOG_COUNT {
+				idx = 0
+			}
+			EventMemoryIdx[client] = idx + 1
 
-		EventMemoryMtx.Lock()
-		idx := EventMemoryIdx[client]
-		if idx >= CLIENT_MEMORY_LOG_COUNT {
-			idx = 0
+			val, exists := EventMemory[client]
+			if !exists {
+				val = &[CLIENT_MEMORY_LOG_COUNT]EventData{}
+				//assign pointer once
+				EventMemory[client] = val
+			}
+			val[idx] = event.data
+			EventMemoryMtx.Unlock()
 		}
-		EventMemoryIdx[client] = idx + 1
-
-		val, exists := EventMemory[client]
-		if !exists {
-			val = &[CLIENT_MEMORY_LOG_COUNT]EventData{}
-			//assign pointer once
-			EventMemory[client] = val
-		}
-		val[idx] = event.data
-		EventMemoryMtx.Unlock()
 	}
 
 	if plugin.SQL != nil {
