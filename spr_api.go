@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"sync"
 )
 
@@ -45,6 +46,17 @@ func (plugin *JsonLog) loadSPRConfig() {
 
 	if plugin.config.DomainIgnoreList == nil {
 		plugin.config.DomainIgnoreList = []string{}
+	}
+}
+
+func (plugin *JsonLog) removeHostIPFromConfig(IP string) {
+
+	plugin.loadSPRConfig()
+
+	index := slices.Index(plugin.config.HostPrivacyIPList, IP)
+	if index != -1 {
+		plugin.config.HostPrivacyIPList = slices.Delete(plugin.config.HostPrivacyIPList, index, index+1)
+		plugin.saveConfig()
 	}
 }
 
