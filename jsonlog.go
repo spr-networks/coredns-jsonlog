@@ -143,7 +143,7 @@ func setup(c *caddy.Controller) error {
 
 				if err == nil {
 					if device.RecentIP != "" {
-
+						jsonlog.removeHostIPFromConfig(device.RecentIP)
 					}
 				}
 			})
