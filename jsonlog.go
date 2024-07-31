@@ -35,6 +35,22 @@ const (
 	CLIENT_MEMORY_LOG_COUNT int    = 1024
 )
 
+type DeviceEntry struct {
+	Name             string
+	MAC              string
+	WGPubKey         string
+	VLANTag          string
+	RecentIP         string
+	Policies         []string
+	Groups           []string
+	DeviceTags       []string
+	DHCPFirstTime    string
+	DHCPLastTime     string
+	DeviceExpiration int64
+	DeleteExpiration bool
+	DeviceDisabled   bool //tbd deprecate this in favor of only using the policy name.
+}
+
 var log = clog.NewWithPlugin(coreDNSPackageName)
 
 func init() {
@@ -120,6 +136,18 @@ func setup(c *caddy.Controller) error {
 		go func() {
 			jsonlog.loadSPRConfig()
 			jsonlog.runAPI()
+
+			go sprbus.HandleEvent("device:delete", func(topic string, jsonInput string) {
+				device := DeviceEntry{}
+				err := json.Unmarshal([]byte(jsonInput), &device)
+
+				if err == nil {
+					if device.RecentIP != "" {
+						jsonlog.removeHostIPFromConfig(device.RecentIP)
+					}
+				}
+			})
+
 		}()
 	}
 
