@@ -170,6 +170,7 @@ type EventData struct {
 	FirstAnswer string
 	Local       string
 	Remote      string
+	Categories  []string
 	Timestamp   time.Time
 }
 
@@ -213,7 +214,12 @@ func (plugin *JsonLog) ServeDNS(ctx context.Context, rw dns.ResponseWriter, r *d
 	event.data.Local = local.String()
 	event.data.Remote = remote.String()
 
+	dnsCategories := []string{}
+	ctx = context.WithValue(ctx, "DNSCategories", &dnsCategories)
+
 	c, err = plugin.Next.ServeDNS(ctx, event, r)
+
+	event.data.Categories = dnsCategories
 
 	if len(event.data.Q) >= 1 {
 		//set FirstName
