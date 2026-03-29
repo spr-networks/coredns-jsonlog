@@ -9,7 +9,7 @@ require (
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/miekg/dns v1.1.72
-	github.com/spr-networks/sprbus v0.1.9
+	github.com/spr-networks/sprbus-json v0.0.0
 )
 
 require (
@@ -55,3 +55,5 @@ require (
 	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+replace github.com/spr-networks/sprbus-json => ../sprbus-json
