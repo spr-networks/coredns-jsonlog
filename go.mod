@@ -43,7 +43,6 @@ require (
 	github.com/quic-go/quic-go v0.60.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	go.uber.org/mock v0.6.0 // indirect
-	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
