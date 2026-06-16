@@ -9,7 +9,7 @@ require (
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/miekg/dns v1.1.72
-	github.com/spr-networks/sprbus-json v0.0.0-20260611214740-99ea46b83932
+	github.com/spr-networks/sprbus-json v0.0.0-20260616150305-efdec19847c8
 )
 
 require (
